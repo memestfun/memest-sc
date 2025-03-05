@@ -1,18 +1,10 @@
-/*
 #[test_only]
 module memest::memest_tests;
-// uncomment this line to import the module
-// use memest::memest;
 
-const ENotImplemented: u64 = 0;
+use memest::memest;
 
 #[test]
 fun test_memest() {
-    // pass
+    let sum = 2 + 2;
+    assert!(sum == 4);
 }
-
-#[test, expected_failure(abort_code = ::memest::memest_tests::ENotImplemented)]
-fun test_memest_fail() {
-    abort ENotImplemented
-}
-*/
