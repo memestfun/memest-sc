@@ -14,47 +14,37 @@ public struct Nft has key, store {
     url: Url,
 }
 
-public struct NftBalance<phantom T> has key {
+public struct NftBalance<phantom T> has key, store {
     id: UID,
     nft_id: ID,
     balance: Balance<T>,
 }
 
-#[allow(lint(self_transfer))]
 public fun mint_a_nft(
     name: vector<u8>,
     description: vector<u8>,
     url: vector<u8>,
     ctx: &mut TxContext,
-) {
-    let sender = ctx.sender();
-
-    let nft = Nft {
+): Nft {
+    Nft {
         id: object::new(ctx),
         name: string::utf8(name),
         description: string::utf8(description),
         url: url::new_unsafe_from_bytes(url),
-    };
-
-    transfer::public_transfer(nft, sender);
+    }
 }
 
-public fun transfer_nft(nft: Nft, recipient: address, _: &mut TxContext) {
-    transfer::public_transfer(nft, recipient)
+public fun burn_nft(nft: Nft, _: &mut TxContext) {
+    let Nft { id, name: _, description: _, url: _ } = nft;
+    id.delete();
 }
 
-public fun wrap_coin<C: key + store>(nft: &mut Nft, coin: Coin<C>, ctx: &mut TxContext) {
-    let sender = ctx.sender();
-
+public fun wrap_coin<C>(nft: &Nft, coin: Coin<C>, ctx: &mut TxContext): NftBalance<C> {
     let balance = coin::into_balance(coin);
-
-    let nft_blc = NftBalance { id: object::new(ctx), balance, nft_id: object::id(nft) };
-
-    transfer::transfer(nft_blc, sender);
+    NftBalance { id: object::new(ctx), balance, nft_id: object::id(nft) }
 }
 
-#[allow(lint(self_transfer))]
-public fun unwrap_coin<C: key + store>(nft: &Nft, nft_blc: NftBalance<C>, ctx: &mut TxContext) {
+public fun unwrap_coin<C>(nft: &Nft, nft_blc: NftBalance<C>, ctx: &mut TxContext): Coin<C> {
     let NftBalance {
         id,
         balance,
@@ -63,9 +53,6 @@ public fun unwrap_coin<C: key + store>(nft: &Nft, nft_blc: NftBalance<C>, ctx: &
 
     assert!(nft_id == object::id(nft), ENftAndNftBlcMissMatch);
 
-    let sender = ctx.sender();
-    let coin = coin::from_balance(balance, ctx);
-
-    transfer::public_transfer(coin, sender);
-    object::delete(id);
+    id.delete();
+    coin::from_balance(balance, ctx)
 }

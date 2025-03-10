@@ -1,0 +1,19 @@
+{
+	"name": "sc",
+	"version": "1.0.0",
+	"description": "",
+	"main": "index.js",
+	"scripts": {
+		"start": "tsx client/main.ts"
+	},
+	"keywords": [],
+	"author": "",
+	"license": "ISC",
+	"dependencies": {
+		"@mysten/sui": "^1.21.2"
+	},
+	"devDependencies": {
+		"@types/node": "^22.13.9",
+		"tsx": "^4.19.3"
+	}
+}
