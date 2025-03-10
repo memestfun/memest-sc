@@ -14,8 +14,6 @@ fun init(witness: GONI, ctx: &mut TxContext) {
         option::none(),
         ctx,
     );
-    // Freezing this object makes the metadata immutable, including the title, name, and icon image.
-    // If you want to allow mutability, share it with public_share_object instead.
     transfer::public_freeze_object(metadata);
     transfer::public_transfer(treasury, ctx.sender())
 }
@@ -28,4 +26,9 @@ public fun mint(
 ) {
     let coin = coin::mint(treasury_cap, amount, ctx);
     transfer::public_transfer(coin, recipient)
+}
+
+#[test_only]
+public fun test_init(ctx: &mut TxContext) {
+    init(GONI {}, ctx)
 }
