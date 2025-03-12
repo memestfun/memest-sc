@@ -33,33 +33,26 @@ fun scripts() {
     scenario.next_tx(ALICE);
     {
         let coin = scenario.take_from_sender<Coin<memest::goni::GONI>>();
-        let nft = memest::memest::mint_a_nft(
+        let mut nft = memest::memest::mint_a_nft(
             vector::empty(),
             vector::empty(),
             vector::empty(),
             scenario.ctx(),
         );
-        memest::memest::wrap_coin(&nft, coin, scenario.ctx());
+        memest::memest::wrap_coin(&mut nft, coin, scenario.ctx());
         transfer::public_transfer(nft, BLAIR);
     };
 
     scenario.next_tx(BLAIR);
     {
-        let nft = scenario.take_from_sender<memest::memest::Nft>();
+        let mut nft = scenario.take_from_sender<memest::memest::Nft>();
         assert!(memest::memest::name(&nft).is_empty());
 
-        {
-            scenario.next_tx(object::id_address(&nft));
-            let nft_blc = scenario.take_from_sender<
-                memest::memest::NftBalance<memest::goni::GONI>,
-            >();
-            let blc = memest::memest::nft_blc(&nft_blc);
-            assert!(blc == 1_000_000);
-            scenario.return_to_sender(nft_blc);
-        };
+        let coin = memest::memest::unwrap_coin<memest::goni::GONI>(&mut nft, scenario.ctx());
+        assert!(coin.value() == 1_000_000);
 
-        scenario.next_tx(BLAIR);
-        scenario.return_to_sender(nft);
+        memest::memest::burn_nft(nft, scenario.ctx());
+        transfer::public_transfer(coin, BLAIR);
     };
 
     scenario.end();
