@@ -6,15 +6,16 @@ import {
 	client,
 	package_id,
 	goni_secret_key,
-	gonisbaby_secret_key
+	gonisbaby_secret_key,
+	storage_id
 } from "./setup"
 
 const goni = Ed25519Keypair.fromSecretKey(fromHex(goni_secret_key))
 const gonisbaby = Ed25519Keypair.fromSecretKey(fromHex(gonisbaby_secret_key))
 
 async function main() {
-	const coin = await mint_goni()
-	console.log("done mint 16_000_000 GONI to goni")
+	const coin = await buy_memest()
+	console.log("done buy 10 MEMEST")
 
 	const nft = await mint_nft_and_wrap_coin(coin)
 	console.log("done mint a nft, wrap token then transfer nft to gonisbaby")
@@ -25,27 +26,17 @@ async function main() {
 
 main()
 
-async function mint_goni(): Promise<string> {
+async function buy_memest(): Promise<string> {
 	const tx = new Transaction()
 
-	const {
-		data: [treasury_cap]
-	} = await client.getOwnedObjects({
-		owner: goni.toSuiAddress(),
-		filter: {
-			StructType: `0x2::coin::TreasuryCap<${package_id}::goni::GONI>`
-		}
+	const [coin] = tx.splitCoins(tx.gas, [10_000_000]) // 0.001 SUI
+
+	const memest_coin = tx.moveCall({
+		target: `${package_id}::memest::buy`,
+		arguments: [tx.object(coin), tx.object(storage_id)]
 	})
 
-	tx.moveCall({
-		target: `${package_id}::goni::mint`,
-		arguments: [
-			tx.object(treasury_cap.data?.objectId!),
-
-			tx.pure.u64(16_000_000),
-			tx.pure.address(goni.toSuiAddress())
-		]
-	})
+	tx.transferObjects([memest_coin], goni.toSuiAddress())
 
 	const result = await client.signAndExecuteTransaction({
 		signer: goni,
@@ -55,22 +46,22 @@ async function mint_goni(): Promise<string> {
 	await client.waitForTransaction({ digest: result.digest })
 
 	const {
-		data: [coin]
+		data: [memest]
 	} = await client.getOwnedObjects({
 		owner: goni.toSuiAddress(),
 		filter: {
-			StructType: `0x2::coin::Coin<${package_id}::goni::GONI>`
+			StructType: `0x2::coin::Coin<${package_id}::memest::MEMEST>`
 		}
 	})
 
-	return coin.data?.objectId!
+	return memest.data?.objectId!
 }
 
 async function mint_nft_and_wrap_coin(coin: string): Promise<string> {
 	const tx = new Transaction()
 
 	const nft = tx.moveCall({
-		target: `${package_id}::memest::mint_a_nft`,
+		target: `${package_id}::vending_machine::mint_a_nft`,
 		arguments: [
 			tx.pure.vector("u8", []),
 			tx.pure.vector("u8", []),
@@ -79,8 +70,8 @@ async function mint_nft_and_wrap_coin(coin: string): Promise<string> {
 	})
 
 	tx.moveCall({
-		target: `${package_id}::memest::wrap_coin`,
-		typeArguments: [`${package_id}::goni::GONI`],
+		target: `${package_id}::vending_machine::wrap_coin`,
+		typeArguments: [`${package_id}::memest::MEMEST`],
 		arguments: [nft, tx.object(coin)]
 	})
 
@@ -98,7 +89,7 @@ async function mint_nft_and_wrap_coin(coin: string): Promise<string> {
 	} = await client.getOwnedObjects({
 		owner: gonisbaby.toSuiAddress(),
 		filter: {
-			StructType: `${package_id}::memest::Nft`
+			StructType: `${package_id}::vending_machine::Nft`
 		}
 	})
 
@@ -109,13 +100,13 @@ async function unwrap_nft(nft: string) {
 	const txn = new Transaction()
 
 	const coin = txn.moveCall({
-		target: `${package_id}::memest::unwrap_coin`,
-		typeArguments: [`${package_id}::goni::GONI`],
+		target: `${package_id}::vending_machine::unwrap_coin`,
+		typeArguments: [`${package_id}::memest::MEMEST`],
 		arguments: [txn.object(nft)]
 	})
 
 	txn.moveCall({
-		target: `${package_id}::memest::burn_nft`,
+		target: `${package_id}::vending_machine::burn_nft`,
 		arguments: [txn.object(nft)]
 	})
 

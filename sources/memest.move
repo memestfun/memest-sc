@@ -5,6 +5,7 @@ use sui::coin::{Self, TreasuryCap, Coin};
 use sui::sui::SUI;
 
 const RATE: u64 = 1000;
+const SUPPLY: u64 = 10_000_000_000_000_000;
 
 public struct MEMEST has drop {}
 
@@ -25,7 +26,7 @@ fun init(witness: MEMEST, ctx: &mut TxContext) {
         ctx,
     );
 
-    let coin = coin::mint(&mut treasury, std::u64::max_value!(), ctx);
+    let coin = coin::mint(&mut treasury, SUPPLY, ctx);
     let storage = Storage {
         id: object::new(ctx),
         balance: coin.into_balance(),

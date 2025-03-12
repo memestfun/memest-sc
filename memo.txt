@@ -1,3 +1,3 @@
 One-time witness types are structs with the following requirements: their name is the upper-case version of the module's name, they have no fields (or a single boolean field), they have no type parameters, and they have only the 'drop' ability.
 
-0xf1c84f3b63a233ad9706ced7fda88c1dadc5748bbb7f8cfc21dfe87274a314a3
+0x0fe25a24dd4a3bbafb8621cd03fee7b1a386189e74c297468c12bbd42c4af604
