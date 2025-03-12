@@ -5,7 +5,7 @@ export const goni_secret_key = ""
 export const gonisbaby_secret_key = ""
 
 export const package_id =
-	"0xbb9f6605acdd3f9e0175db00df3ea385ab94df20205822ef6da6c1cabe7455c1"
+	"0x0c2a0046b94e660cf95ed3711814bb1495ae4f96bdd1f016da83ae6e98f3c390"
 
 export const client = new SuiClient({
 	url: getFullnodeUrl("localnet")

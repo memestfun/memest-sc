@@ -1,12 +1,17 @@
 module memest::memest;
 
 use std::string::{Self, String};
+use std::type_name::{Self, TypeName};
 use sui::bag::{Self, Bag};
 use sui::balance::Balance;
 use sui::coin::{Self, Coin};
+use sui::event;
 use sui::url::{Self, Url};
 
-/// NFT identifier.
+// === Errors ===
+const ENftNotContainCoin: u64 = 0;
+
+// === Structs ===
 public struct Nft has key, store {
     id: UID,
     name: String,
@@ -15,10 +20,31 @@ public struct Nft has key, store {
     balances: Bag,
 }
 
-/// Balance identifier.
 public struct BalanceKey<phantom T> has copy, drop, store {}
 
-const ENftNotContainCoin: u64 = 0;
+// === Events ===
+public struct NftCreatedEvent has copy, drop {
+    id: ID,
+    name: String,
+    description: String,
+    url: Url,
+}
+
+public struct WrapCoinEvent has copy, drop {
+    nft_id: ID,
+    coin: String,
+    blc: u64,
+}
+
+public struct UnwrapCoinEvent has copy, drop {
+    nft_id: ID,
+    coin: String,
+    blc: u64,
+}
+
+public struct BurnNftEvent has copy, drop {
+    nft_id: ID,
+}
 
 public fun mint_a_nft(
     name: vector<u8>,
@@ -26,23 +52,34 @@ public fun mint_a_nft(
     url: vector<u8>,
     ctx: &mut TxContext,
 ): Nft {
-    Nft {
+    let nft = Nft {
         id: object::new(ctx),
         name: string::utf8(name),
         description: string::utf8(description),
         url: url::new_unsafe_from_bytes(url),
         balances: bag::new(ctx),
-    }
+    };
+
+    event::emit(NftCreatedEvent {
+        id: object::id(&nft),
+        name: nft.name,
+        description: nft.description,
+        url: nft.url,
+    });
+
+    nft
 }
 
 public fun burn_nft(nft: Nft, _: &mut TxContext) {
     let Nft { id, name: _, description: _, url: _, balances } = nft;
+    event::emit(BurnNftEvent { nft_id: id.to_inner() });
     balances.destroy_empty();
     id.delete();
 }
 
 public fun wrap_coin<C>(nft: &mut Nft, coin: Coin<C>, _ctx: &mut TxContext) {
     let asset_blc = coin::into_balance(coin);
+    let amount = asset_blc.value();
 
     let key = BalanceKey<C> {};
 
@@ -51,7 +88,15 @@ public fun wrap_coin<C>(nft: &mut Nft, coin: Coin<C>, _ctx: &mut TxContext) {
         balance.join(asset_blc);
     } else {
         nft.balances.add(key, asset_blc);
-    }
+    };
+
+    let coin_type: TypeName = type_name::get<C>();
+
+    event::emit(WrapCoinEvent {
+        nft_id: object::id(nft),
+        coin: coin_type.get_address().to_string(),
+        blc: amount,
+    });
 }
 
 public fun unwrap_coin<C>(nft: &mut Nft, ctx: &mut TxContext): Coin<C> {
@@ -61,7 +106,15 @@ public fun unwrap_coin<C>(nft: &mut Nft, ctx: &mut TxContext): Coin<C> {
 
     assert!(key_exists, ENftNotContainCoin);
 
-    let balance = nft.balances.remove(key);
+    let balance: Balance<C> = nft.balances.remove(key);
+
+    let coin_type: TypeName = type_name::get<C>();
+
+    event::emit(UnwrapCoinEvent {
+        nft_id: object::id(nft),
+        coin: coin_type.get_address().to_string(),
+        blc: balance.value(),
+    });
 
     coin::from_balance(balance, ctx)
 }
