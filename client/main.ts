@@ -16,10 +16,10 @@ async function main() {
 	const coin = await mint_goni()
 	console.log("done mint 16_000_000 GONI to goni")
 
-	const [nft, nft_blc] = await mint_nft_and_wrap_coin(coin)
+	const nft = await mint_nft_and_wrap_coin(coin)
 	console.log("done mint a nft, wrap token then transfer nft to gonisbaby")
 
-	await unwrap_nft(nft, nft_blc)
+	await unwrap_nft(nft)
 	console.log("done unwrap nft and burn nft")
 }
 
@@ -66,7 +66,7 @@ async function mint_goni(): Promise<string> {
 	return coin.data?.objectId!
 }
 
-async function mint_nft_and_wrap_coin(coin: string): Promise<[string, string]> {
+async function mint_nft_and_wrap_coin(coin: string): Promise<string> {
 	const tx = new Transaction()
 
 	const nft = tx.moveCall({
@@ -102,27 +102,16 @@ async function mint_nft_and_wrap_coin(coin: string): Promise<[string, string]> {
 		}
 	})
 
-	const nft_id = nft_obj.data?.objectId!
-
-	const {
-		data: [nft_blc_obj]
-	} = await client.getOwnedObjects({
-		owner: nft_id,
-		filter: {
-			StructType: `${package_id}::memest::NftBalance<${package_id}::goni::GONI>`
-		}
-	})
-
-	return [nft_id, nft_blc_obj.data?.objectId!]
+	return nft_obj.data?.objectId!
 }
 
-async function unwrap_nft(nft: string, nft_blc: string) {
+async function unwrap_nft(nft: string) {
 	const txn = new Transaction()
 
 	const coin = txn.moveCall({
 		target: `${package_id}::memest::unwrap_coin`,
 		typeArguments: [`${package_id}::goni::GONI`],
-		arguments: [txn.object(nft), txn.object(nft_blc)]
+		arguments: [txn.object(nft)]
 	})
 
 	txn.moveCall({
