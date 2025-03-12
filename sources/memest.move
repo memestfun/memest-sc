@@ -1,125 +1,60 @@
 module memest::memest;
 
-use std::string::{Self, String};
-use std::type_name::{Self, TypeName};
-use sui::bag::{Self, Bag};
-use sui::balance::Balance;
-use sui::coin::{Self, Coin};
-use sui::event;
-use sui::url::{Self, Url};
+use sui::balance::{Self, Balance};
+use sui::coin::{Self, TreasuryCap, Coin};
+use sui::sui::SUI;
 
-// === Errors ===
-const ENftNotContainCoin: u64 = 0;
+const RATE: u64 = 1000;
 
-// === Structs ===
-public struct Nft has key, store {
+public struct MEMEST has drop {}
+
+public struct Storage has key {
     id: UID,
-    name: String,
-    description: String,
-    url: Url,
-    balances: Bag,
+    balance: Balance<MEMEST>,
+    blc: Balance<SUI>,
 }
 
-public struct BalanceKey<phantom T> has copy, drop, store {}
+fun init(witness: MEMEST, ctx: &mut TxContext) {
+    let (mut treasury, metadata) = coin::create_currency(
+        witness,
+        6,
+        b"MEMEST",
+        b"memest coin",
+        b"memest coin",
+        option::none(),
+        ctx,
+    );
 
-// === Events ===
-public struct NftCreatedEvent has copy, drop {
-    id: ID,
-    name: String,
-    description: String,
-    url: Url,
-}
-
-public struct WrapCoinEvent has copy, drop {
-    nft_id: ID,
-    coin: String,
-    blc: u64,
-}
-
-public struct UnwrapCoinEvent has copy, drop {
-    nft_id: ID,
-    coin: String,
-    blc: u64,
-}
-
-public struct BurnNftEvent has copy, drop {
-    nft_id: ID,
-}
-
-public fun mint_a_nft(
-    name: vector<u8>,
-    description: vector<u8>,
-    url: vector<u8>,
-    ctx: &mut TxContext,
-): Nft {
-    let nft = Nft {
+    let coin = coin::mint(&mut treasury, std::u64::max_value!(), ctx);
+    let storage = Storage {
         id: object::new(ctx),
-        name: string::utf8(name),
-        description: string::utf8(description),
-        url: url::new_unsafe_from_bytes(url),
-        balances: bag::new(ctx),
+        balance: coin.into_balance(),
+        blc: balance::zero(),
     };
 
-    event::emit(NftCreatedEvent {
-        id: object::id(&nft),
-        name: nft.name,
-        description: nft.description,
-        url: nft.url,
-    });
-
-    nft
+    transfer::share_object(storage);
+    transfer::public_freeze_object(metadata);
+    transfer::public_transfer(treasury, ctx.sender())
 }
 
-public fun burn_nft(nft: Nft, _: &mut TxContext) {
-    let Nft { id, name: _, description: _, url: _, balances } = nft;
-    event::emit(BurnNftEvent { nft_id: id.to_inner() });
-    balances.destroy_empty();
-    id.delete();
+public fun buy(coin: Coin<SUI>, storage: &mut Storage, ctx: &mut TxContext): Coin<MEMEST> {
+    let value = coin.value();
+    let blc = coin.into_balance();
+    storage.blc.join(blc);
+    storage.balance.split(value * RATE).into_coin(ctx)
 }
 
-public fun wrap_coin<C>(nft: &mut Nft, coin: Coin<C>, _ctx: &mut TxContext) {
-    let asset_blc = coin::into_balance(coin);
-    let amount = asset_blc.value();
-
-    let key = BalanceKey<C> {};
-
-    if (nft.balances.contains(key)) {
-        let balance: &mut Balance<C> = &mut nft.balances[key];
-        balance.join(asset_blc);
-    } else {
-        nft.balances.add(key, asset_blc);
-    };
-
-    let coin_type: TypeName = type_name::get<C>();
-
-    event::emit(WrapCoinEvent {
-        nft_id: object::id(nft),
-        coin: coin_type.get_address().to_string(),
-        blc: amount,
-    });
-}
-
-public fun unwrap_coin<C>(nft: &mut Nft, ctx: &mut TxContext): Coin<C> {
-    let key = BalanceKey<C> {};
-
-    let key_exists = nft.balances.contains(key);
-
-    assert!(key_exists, ENftNotContainCoin);
-
-    let balance: Balance<C> = nft.balances.remove(key);
-
-    let coin_type: TypeName = type_name::get<C>();
-
-    event::emit(UnwrapCoinEvent {
-        nft_id: object::id(nft),
-        coin: coin_type.get_address().to_string(),
-        blc: balance.value(),
-    });
-
-    coin::from_balance(balance, ctx)
+public fun mint(
+    treasury_cap: &mut TreasuryCap<MEMEST>,
+    storage: &mut Storage,
+    amount: u64,
+    ctx: &mut TxContext,
+) {
+    let balance = coin::mint(treasury_cap, amount, ctx).into_balance();
+    storage.balance.join(balance);
 }
 
 #[test_only]
-public fun name(nft: &Nft): String {
-    nft.name
+public fun test_init(ctx: &mut TxContext) {
+    init(MEMEST {}, ctx)
 }
