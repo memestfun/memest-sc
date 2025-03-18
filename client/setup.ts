@@ -1,8 +1,12 @@
 import { getFullnodeUrl, SuiClient } from "@mysten/sui/client"
 
-export const goni_secret_key = ""
+export const goni_secret_key =
+	"0x310aeadb24654bce536d235027b0ed6e48d937b2988de16bc16af0553310ea05"
 
 export const gonisbaby_secret_key = ""
+
+export const mizu_secret_key =
+	"0xf964a8cda0387293a200d94e791a907bafd8765286c0f05bfa9f2f35e2ef93db"
 
 export const package_id =
 	"0x0fe25a24dd4a3bbafb8621cd03fee7b1a386189e74c297468c12bbd42c4af604"

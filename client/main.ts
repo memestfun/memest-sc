@@ -6,12 +6,12 @@ import {
 	client,
 	package_id,
 	goni_secret_key,
-	gonisbaby_secret_key,
-	storage_id
+	storage_id,
+	mizu_secret_key
 } from "./setup"
 
 const goni = Ed25519Keypair.fromSecretKey(fromHex(goni_secret_key))
-const gonisbaby = Ed25519Keypair.fromSecretKey(fromHex(gonisbaby_secret_key))
+const mizu = Ed25519Keypair.fromSecretKey(fromHex(mizu_secret_key))
 
 async function main() {
 	const coin = await buy_memest()
@@ -75,7 +75,7 @@ async function mint_nft_and_wrap_coin(coin: string): Promise<string> {
 		arguments: [nft, tx.object(coin)]
 	})
 
-	tx.transferObjects([nft], gonisbaby.toSuiAddress())
+	tx.transferObjects([nft], mizu.toSuiAddress())
 
 	const result = await client.signAndExecuteTransaction({
 		signer: goni,
@@ -87,7 +87,7 @@ async function mint_nft_and_wrap_coin(coin: string): Promise<string> {
 	const {
 		data: [nft_obj]
 	} = await client.getOwnedObjects({
-		owner: gonisbaby.toSuiAddress(),
+		owner: mizu.toSuiAddress(),
 		filter: {
 			StructType: `${package_id}::vending_machine::Nft`
 		}
@@ -110,11 +110,27 @@ async function unwrap_nft(nft: string) {
 		arguments: [txn.object(nft)]
 	})
 
-	txn.transferObjects([coin], gonisbaby.toSuiAddress())
+	txn.transferObjects([coin], mizu.toSuiAddress())
 
-	const rs = await client.signAndExecuteTransaction({
-		signer: gonisbaby,
-		transaction: txn
+	const bytes = await txn.build({
+		onlyTransactionKind: true,
+		client
+	})
+
+	const sponsoredTx = Transaction.fromKind(bytes)
+
+	sponsoredTx.setSender(mizu.toSuiAddress())
+	sponsoredTx.setGasOwner(goni.toSuiAddress())
+
+	const mizuSig = await sponsoredTx.sign({ signer: mizu, client })
+	const goniSig = await sponsoredTx.sign({ signer: goni, client })
+
+	const rs = await client.executeTransactionBlock({
+		transactionBlock: await sponsoredTx.build({
+			client,
+			onlyTransactionKind: false
+		}),
+		signature: [mizuSig.signature, goniSig.signature]
 	})
 
 	await client.waitForTransaction({ digest: rs.digest })
