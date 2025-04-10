@@ -148,9 +148,7 @@ export class DeepBookMarketMaker extends DeepBookClient {
 }
 
 async function main() {
-	const signer = DeepBookMarketMaker.getSignerFromPK(
-		"suiprivkey1qqcs46kmy3j5hnjnd534qfasa4hy3kfhk2vgmcttc940q4fnzr4q24v93vs"
-	)
+	const signer = DeepBookMarketMaker.getSignerFromPK("")
 
 	const client = new DeepBookMarketMaker(signer, "testnet")
 
