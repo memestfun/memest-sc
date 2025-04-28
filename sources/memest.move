@@ -1,3 +1,4 @@
+// This module for only testing, just create a mock token
 module memest::memest;
 
 use sui::balance::{Self, Balance};
