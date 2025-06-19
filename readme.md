@@ -1,4 +1,4 @@
-# Vending Machine - NFT Wrapper Contract
+# Gift wrapper - NFT Wrapper Contract
 
 This module allows users to **wrap fungible tokens into a single NFT**, transfer it, and later **unwrap** it to retrieve the original tokens.
 
