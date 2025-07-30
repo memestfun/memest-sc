@@ -1,4 +1,4 @@
-module memest::vending_machine;
+module memest::gift_wrapper;
 
 use std::string::{Self, String};
 use std::type_name::{Self, TypeName};
